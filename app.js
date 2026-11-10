@@ -218,15 +218,102 @@ function connectionsApp() {
     </div></div>`;
 }
 
+/* ===================== LIVE WALLPAPERS (canvas) ===================== */
+const live = (() => {
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let raf = 0, mode = null, cv = null, ctx = null, w = 0, h = 0, lastDraw = 0;
+  let stars = [], drops = [];
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const BANDS = [
+    { base: .30, amp: .07, f1: 1.6, f2: 3.1, s1: .16, s2: .11, th: .26, c1: [47, 91, 255],  c2: [20, 50, 190], a: .55 },
+    { base: .40, amp: .09, f1: 1.2, f2: 2.6, s1: .12, s2: .17, th: .30, c1: [60, 110, 255], c2: [25, 60, 200], a: .45 },
+    { base: .48, amp: .06, f1: 2.1, f2: 4.0, s1: .20, s2: .09, th: .22, c1: [95, 150, 255], c2: [40, 80, 220], a: .35 },
+    { base: .26, amp: .05, f1: 2.8, f2: 1.7, s1: .09, s2: .14, th: .20, c1: [30, 70, 230],  c2: [15, 40, 160], a: .40 },
+  ];
+  function size() {
+    if (!cv) return;
+    const k = mode === "aurora" ? (mobile() ? 0.35 : 0.5) : 1;   // aurora is soft, so render it small and let the browser scale it
+    w = cv.width = Math.max(2, Math.round(innerWidth * k)); h = cv.height = Math.max(2, Math.round(innerHeight * k));
+    stars = Array.from({ length: Math.round(w * h / 5200) }, () => ({ x: Math.random() * w, y: Math.random() * h * .75, r: rnd(.4, 1.1), p: rnd(0, 6.28), s: rnd(.4, 1.4) }));
+    const n = Math.round(Math.min(mobile() ? 110 : 260, innerWidth * innerHeight / 7000));
+    drops = Array.from({ length: n }, () => newDrop(true));
+  }
+  function newDrop(anywhere) { return { x: rnd(-50, innerWidth + 50), y: anywhere ? rnd(0, innerHeight) : rnd(-120, -10), l: rnd(14, 38), v: rnd(620, 1000), a: rnd(.18, .6) }; }
+
+  function drawAurora(t) {
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, "#02061a"); g.addColorStop(.5, "#081d63"); g.addColorStop(1, "#0f2f96");
+    ctx.globalCompositeOperation = "source-over"; ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+    for (const s of stars) { ctx.globalAlpha = .35 + .35 * Math.sin(t * s.s + s.p); ctx.fillStyle = "#cfe0ff"; ctx.fillRect(s.x, s.y, s.r, s.r); }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = "lighter";
+    for (const b of BANDS) {
+      const top = [], step = Math.max(4, w / 160);
+      for (let x = 0; x <= w + step; x += step) {
+        const u = x / w * 6.283;
+        const y = h * b.base + Math.sin(u * b.f1 + t * b.s1 * 3) * h * b.amp + Math.sin(u * b.f2 - t * b.s2 * 3) * h * b.amp * .55;
+        const th = h * b.th * (.75 + .25 * Math.sin(u * 1.3 + t * .35));
+        top.push([x, y, th]);
+      }
+      const g2 = ctx.createLinearGradient(0, h * (b.base - b.amp * 1.5), 0, h * (b.base + b.amp * 1.5 + b.th));
+      g2.addColorStop(0, `rgba(${b.c1},0)`); g2.addColorStop(.28, `rgba(${b.c1},${b.a})`);
+      g2.addColorStop(.65, `rgba(${b.c2},${b.a * .45})`); g2.addColorStop(1, `rgba(${b.c2},0)`);
+      ctx.fillStyle = g2; ctx.beginPath(); ctx.moveTo(top[0][0], top[0][1]);
+      for (const p of top) ctx.lineTo(p[0], p[1]);
+      for (let i = top.length - 1; i >= 0; i--) ctx.lineTo(top[i][0], top[i][1] + top[i][2]);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.globalCompositeOperation = "source-over";
+  }
+  function drawRain(t, dt) {
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, "#030a1f"); g.addColorStop(.6, "#08205e"); g.addColorStop(1, "#0d2c8a");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+    const glow = ctx.createRadialGradient(w * .5, h * 1.05, 0, w * .5, h * 1.05, h * .8);
+    glow.addColorStop(0, "rgba(70,120,255,.28)"); glow.addColorStop(1, "rgba(70,120,255,0)");
+    ctx.fillStyle = glow; ctx.fillRect(0, 0, w, h);
+    ctx.lineWidth = 1.1; ctx.lineCap = "round";
+    for (const d of drops) {
+      ctx.strokeStyle = `rgba(150,190,255,${d.a})`;
+      ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(d.x - d.l * .18, d.y - d.l); ctx.stroke();
+      d.y += d.v * dt; d.x -= d.v * dt * .18;
+      if (d.y - d.l > h) Object.assign(d, newDrop(false));
+    }
+  }
+  function frame(now) {
+    raf = requestAnimationFrame(frame);
+    const minGap = mode === "aurora" ? 33 : 16;           // aurora at ~30fps is plenty and saves battery
+    if (now - lastDraw < minGap) return;
+    const dt = Math.min(.05, (now - lastDraw) / 1000); lastDraw = now;
+    mode === "aurora" ? drawAurora(now / 1000) : drawRain(now / 1000, dt);
+  }
+  function stop() { cancelAnimationFrame(raf); raf = 0; }
+  function start() {
+    stop(); if (!mode || document.hidden) return;
+    if (reduced) { mode === "aurora" ? drawAurora(4) : drawRain(0, 0); return; }   // still frame for reduced-motion users
+    lastDraw = 0; raf = requestAnimationFrame(frame);
+  }
+  document.addEventListener("visibilitychange", () => document.hidden ? stop() : start());
+  addEventListener("resize", () => { if (mode) { size(); if (reduced) start(); } });
+  return {
+    set(id) {
+      mode = (id === "aurora" || id === "rain") ? id : null;
+      if (!mode) { stop(); return; }
+      cv = document.querySelector(`#wallpaper canvas[data-wp="${id}"]`); ctx = cv.getContext("2d"); size(); start();
+    },
+  };
+})();
+
 const WALLPAPERS = [
+  { id: "aurora", name: "Aurora", live: true }, { id: "rain", name: "Rain", live: true },
   { id: "plasma", name: "Plasma" }, { id: "waves", name: "Waves" }, { id: "blueprint", name: "Blueprint" },
   { id: "horizon", name: "Horizon" }, { id: "bokeh", name: "Bokeh" },
 ];
 function setWallpaper(id) {
-  if (id === "custom" && !store.get("wp-custom")) id = "plasma";
-  if (id !== "custom" && !WALLPAPERS.some(w => w.id === id)) id = "plasma";
+  if (id === "custom" && !store.get("wp-custom")) id = "aurora";
+  if (id !== "custom" && !WALLPAPERS.some(w => w.id === id)) id = "aurora";
   document.documentElement.dataset.wp = id;
   store.set("wp", id);
+  live.set(id);
   if (id === "custom") $(".wp-custom").style.backgroundImage = `url("${store.get("wp-custom")}")`;
   document.querySelectorAll(".wp-opt").forEach(b => b.classList.toggle("on", b.dataset.id === id));
 }
@@ -248,9 +335,14 @@ function wallpaperSection(root) {
   WALLPAPERS.forEach(w => {
     const b = el("button", { className: "wp-opt" }, `<div class="wp-thumb"></div><b>${w.name}</b>`);
     b.dataset.id = w.id;
-    const svg = document.querySelector(`#wallpaper svg[data-wp="${w.id}"]`).cloneNode(true);
-    svg.removeAttribute("class"); svg.querySelectorAll("[id]").forEach(n => n.removeAttribute("id"));
-    $(".wp-thumb", b).append(svg);
+    if (w.live) {
+      $(".wp-thumb", b).append(el("div", { className: "live-" + w.id }), el("span", { className: "live-badge", textContent: "LIVE" }));
+      $(".live-" + w.id, b).style.cssText = "position:absolute;inset:0";
+    } else {
+      const svg = document.querySelector(`#wallpaper svg[data-wp="${w.id}"]`).cloneNode(true);
+      svg.removeAttribute("class"); svg.querySelectorAll("[id]").forEach(n => n.removeAttribute("id"));
+      $(".wp-thumb", b).append(svg);
+    }
     b.onclick = () => setWallpaper(w.id);
     grid.append(b);
   });
@@ -272,7 +364,7 @@ function settingsApp() {
       <button class="theme-opt" data-id="${t.id}">
         <div class="sw" style="background:linear-gradient(135deg,${t.a},${t.b})"><i style="background:${t.bar}"></i></div>
         <b>${t.name}</b><small>${t.note}</small></button>`).join("")}</div>
-    <div class="sec"><h3>Wallpaper</h3><div class="wps"></div><p class="wp-note">Tip: after choosing your own image, click its tile again to switch back to it later.</p></div>
+    <div class="sec"><h3>Wallpaper</h3><div class="wps"></div><p class="wp-note">Live wallpapers pause when the tab is hidden. Tip: after choosing your own image, click its tile again to switch back to it later.</p></div>
     <div class="sec"><h3>About this desktop</h3>
       <p>A hand-built, Plasma-inspired desktop in plain HTML, CSS and JavaScript. No frameworks, no build step. Drag windows by their title bars, resize from the edges, and try the Terminal.</p></div></div>`;
 }
@@ -485,7 +577,7 @@ tickClock(); setInterval(tickClock, 1000);
 
 /* ===================== BOOT ===================== */
 setTheme(store.get("theme") || "midnight");
-setWallpaper(store.get("wp") || "plasma");
+setWallpaper(store.get("wp") || "aurora");
 (function avatar() {
   const img = $("#lh-avatar"); img.onload = () => { img.hidden = false; $("#lh-fallback").hidden = true; }; img.src = CONFIG.photo;
 })();

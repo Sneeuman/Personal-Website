@@ -325,3 +325,18 @@ html[data-wp="custom"] #wallpaper .wp[data-wp="custom"] { visibility: visible; }
 .boot-log { margin-top: 16px; height: 78px; overflow: hidden; text-align: left; font: 12px/1.6 ui-monospace, Menlo, Consolas, monospace; color: #7388a8; }
 .boot-log b { color: #3daee9; font-weight: 700; }
 #boot-skip { position: absolute; bottom: 22px; left: 0; right: 0; color: #5b6f8c; font-size: 12px; pointer-events: none; }
+
+/* ============ LIVE WALLPAPERS ============ */
+html[data-wp="aurora"] #wallpaper .wp[data-wp="aurora"],
+html[data-wp="rain"] #wallpaper .wp[data-wp="rain"] { visibility: visible; }
+#wallpaper canvas.wp { image-rendering: auto; }
+/* these two are always dark, so keep desktop labels light even in the Daylight theme */
+:root[data-wp="aurora"] .dicon, :root[data-wp="rain"] .dicon { color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+.wp-thumb .live-aurora { background:
+  radial-gradient(60% 40% at 30% 55%, rgba(47,91,255,.9), transparent 70%),
+  radial-gradient(55% 35% at 70% 45%, rgba(79,140,255,.7), transparent 70%),
+  linear-gradient(#030a1f, #0a1f66 70%, #1238a8); }
+.wp-thumb .live-rain { background:
+  repeating-linear-gradient(105deg, transparent 0 9px, rgba(130,175,255,.45) 9px 10px),
+  linear-gradient(#030a1f, #0b2470); }
+.live-badge { position: absolute; top: 4px; right: 4px; font-size: 9px; font-weight: 700; letter-spacing: .06em; padding: 2px 5px; border-radius: 99px; background: var(--accent); color: var(--accent-ink); }
