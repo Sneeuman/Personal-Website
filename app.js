@@ -55,6 +55,11 @@ const CONFIG = {
       stack: ["Python", "Concurrency", "Threading"], repo: "",
     },
     {
+      tag: "Android · Group project", name: "Amplify",
+      points: ["Secure community and messaging Android app: feed, search, profiles and an admin portal.", "End-to-end encrypted direct and group chats with real-time sync and an AI assistant.", "Identity verification workflow, backed by Supabase."],
+      stack: ["Java", "Android", "Supabase", "XML"], repo: "https://github.com/AtiyyahBata/Amplify",
+    },
+    {
       tag: "Android · Group project", name: "AI Career Companion",
       points: ["Community app linking software engineering students with articles, Q&A and courses.", "Helped design the database, user verification and architecture."],
       stack: ["Android Studio", "Java", "Firebase"], repo: "",
@@ -213,12 +218,61 @@ function connectionsApp() {
     </div></div>`;
 }
 
+const WALLPAPERS = [
+  { id: "plasma", name: "Plasma" }, { id: "waves", name: "Waves" }, { id: "blueprint", name: "Blueprint" },
+  { id: "horizon", name: "Horizon" }, { id: "bokeh", name: "Bokeh" },
+];
+function setWallpaper(id) {
+  if (id === "custom" && !store.get("wp-custom")) id = "plasma";
+  if (id !== "custom" && !WALLPAPERS.some(w => w.id === id)) id = "plasma";
+  document.documentElement.dataset.wp = id;
+  store.set("wp", id);
+  if (id === "custom") $(".wp-custom").style.backgroundImage = `url("${store.get("wp-custom")}")`;
+  document.querySelectorAll(".wp-opt").forEach(b => b.classList.toggle("on", b.dataset.id === id));
+}
+function uploadWallpaper(file, done) {
+  if (!file || !file.type.startsWith("image/")) return;
+  const img = new Image(), url = URL.createObjectURL(file);
+  img.onload = () => {
+    const k = Math.min(1, 1920 / Math.max(img.width, img.height)), c = document.createElement("canvas");
+    c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    store.set("wp-custom", c.toDataURL("image/jpeg", 0.82));
+    done();
+  };
+  img.src = url;
+}
+function wallpaperSection(root) {
+  const grid = $(".wps", root);
+  WALLPAPERS.forEach(w => {
+    const b = el("button", { className: "wp-opt" }, `<div class="wp-thumb"></div><b>${w.name}</b>`);
+    b.dataset.id = w.id;
+    const svg = document.querySelector(`#wallpaper svg[data-wp="${w.id}"]`).cloneNode(true);
+    svg.removeAttribute("class"); svg.querySelectorAll("[id]").forEach(n => n.removeAttribute("id"));
+    $(".wp-thumb", b).append(svg);
+    b.onclick = () => setWallpaper(w.id);
+    grid.append(b);
+  });
+  const up = el("label", { className: "wp-opt upload" }, `<div class="wp-thumb"><div class="wp-custom-thumb">＋</div></div><b>Your own image</b><input type="file" accept="image/*" hidden>`);
+  up.dataset.id = "custom";
+  const thumb = $(".wp-custom-thumb", up);
+  if (store.get("wp-custom")) { thumb.style.backgroundImage = `url("${store.get("wp-custom")}")`; thumb.textContent = ""; }
+  $("input", up).onchange = e => uploadWallpaper(e.target.files[0], () => {
+    thumb.style.backgroundImage = `url("${store.get("wp-custom")}")`; thumb.textContent = ""; setWallpaper("custom");
+  });
+  up.addEventListener("click", e => { if (e.target.tagName !== "INPUT" && store.get("wp-custom") && e.detail) { e.preventDefault(); setWallpaper("custom"); } });
+  grid.append(up);
+  setWallpaper(document.documentElement.dataset.wp);
+}
+
 function settingsApp() {
-  return `<div class="pad"><h2 class="app-h">Appearance</h2><p class="sub">Pick a theme. Your choice is remembered on this device.</p>
+  return `<div class="pad"><h2 class="app-h">Appearance</h2><p class="sub">Pick a theme and a wallpaper. Your choices are remembered on this device.</p>
     <div class="themes">${THEMES.map(t => `
       <button class="theme-opt" data-id="${t.id}">
         <div class="sw" style="background:linear-gradient(135deg,${t.a},${t.b})"><i style="background:${t.bar}"></i></div>
         <b>${t.name}</b><small>${t.note}</small></button>`).join("")}</div>
+    <div class="sec"><h3>Wallpaper</h3><div class="wps"></div><p class="wp-note">Tip: after choosing your own image, click its tile again to switch back to it later.</p></div>
     <div class="sec"><h3>About this desktop</h3>
       <p>A hand-built, Plasma-inspired desktop in plain HTML, CSS and JavaScript. No frameworks, no build step. Drag windows by their title bars, resize from the edges, and try the Terminal.</p></div></div>`;
 }
@@ -231,13 +285,14 @@ function terminalApp(root) {
   const print = (t, cls = "") => { out.append(el("div", { className: "ln " + cls }, t)); term.scrollTop = term.scrollHeight; };
   const hist = []; let hi = 0;
   const cmds = {
-    help: () => print(`Commands:\n  <span class="ac">about</span>     who I am\n  <span class="ac">skills</span>    what I work with\n  <span class="ac">projects</span>  what I've built\n  <span class="ac">contact</span>   how to reach me\n  <span class="ac">neofetch</span>  system info\n  <span class="ac">theme</span>     cycle the theme\n  <span class="ac">open</span> &lt;app&gt;  open: cv, github, linkedin, projects\n  <span class="ac">clear</span>     clear the screen`),
+    help: () => print(`Commands:\n  <span class="ac">about</span>     who I am\n  <span class="ac">skills</span>    what I work with\n  <span class="ac">projects</span>  what I've built\n  <span class="ac">contact</span>   how to reach me\n  <span class="ac">neofetch</span>  system info\n  <span class="ac">theme</span>     cycle the theme\n  <span class="ac">wallpaper</span> cycle the wallpaper\n  <span class="ac">open</span> &lt;app&gt;  open: cv, github, linkedin, projects\n  <span class="ac">clear</span>     clear the screen`),
     whoami: () => print("almero"),
     about: () => print(esc(CONFIG.bio[0])),
     skills: () => Object.entries(CONFIG.skills).forEach(([k, v]) => print(`<span class="ac">${esc(k)}</span>: ${esc(v.join(", "))}`)),
     projects: () => CONFIG.projects.forEach(p => print(`<span class="ac">${esc(p.name)}</span> <span class="dim">(${esc(p.stack.join(", "))})</span>`)),
     contact: () => print(`GitHub    ${esc(CONFIG.github)}\nLinkedIn  ${esc(CONFIG.linkedin)}${CONFIG.email ? "\nEmail     " + esc(CONFIG.email) : ""}`),
     theme: () => { cycleTheme(); print("Theme switched.", "dim"); },
+    wallpaper: () => { const ids = WALLPAPERS.map(w => w.id); setWallpaper(ids[(ids.indexOf(document.documentElement.dataset.wp) + 1) % ids.length]); print("Wallpaper switched.", "dim"); },
     clear: () => { out.innerHTML = ""; },
     neofetch: () => print(`<span class="ac">almero</span>@<span class="ac">portfolio</span>\n-----------------\n<span class="ac">OS</span>      PortfolioOS (Plasma-style)\n<span class="ac">Host</span>    ${esc(CONFIG.location)}\n<span class="ac">Shell</span>   js-sh 1.0\n<span class="ac">Role</span>    ${esc(CONFIG.title)}\n<span class="ac">Study</span>   ${esc(CONFIG.tagline)}\n<span class="ac">Theme</span>   ${esc(document.documentElement.dataset.theme)}\n<span class="ac">Time</span>    ${esc(clockParts().time)} SAST`),
     open: arg => {
@@ -268,7 +323,7 @@ const APPS = {
   projects:    { title: "Projects",    icon: ICON.projects,    w: 780, h: 560, desc: "Selected work", render: r => r.innerHTML = projectsApp() },
   connections: { title: "Connections", icon: ICON.connections, w: 640, h: 420, desc: "GitHub, LinkedIn and email", render: r => r.innerHTML = connectionsApp() },
   terminal:    { title: "Terminal",    icon: ICON.terminal,    w: 640, h: 420, desc: "Poke around with commands", init: terminalApp },
-  settings:    { title: "Appearance",  icon: ICON.settings,    w: 560, h: 440, desc: "Themes", render: r => { r.innerHTML = settingsApp(); r.querySelectorAll(".theme-opt").forEach(b => b.onclick = () => setTheme(b.dataset.id)); setTheme(document.documentElement.dataset.theme); } },
+  settings:    { title: "Appearance",  icon: ICON.settings,    w: 620, h: 600, desc: "Themes and wallpapers", render: r => { r.innerHTML = settingsApp(); wallpaperSection(r); r.querySelectorAll(".theme-opt").forEach(b => b.onclick = () => setTheme(b.dataset.id)); setTheme(document.documentElement.dataset.theme); } },
 };
 const DESKTOP_ORDER = ["about", "cv", "projects", "connections", "terminal", "settings"];
 const LINKS = [
@@ -430,8 +485,40 @@ tickClock(); setInterval(tickClock, 1000);
 
 /* ===================== BOOT ===================== */
 setTheme(store.get("theme") || "midnight");
+setWallpaper(store.get("wp") || "plasma");
 (function avatar() {
   const img = $("#lh-avatar"); img.onload = () => { img.hidden = false; $("#lh-fallback").hidden = true; }; img.src = CONFIG.photo;
 })();
-// Open the About window on first load so visitors see something immediately
-openApp("about");
+/* ===================== BOOT SCREEN ===================== */
+function runBoot(onDone) {
+  const boot = $("#boot"), fill = $("#boot-fill"), log = $("#boot-log");
+  const seen = (() => { try { return sessionStorage.getItem("booted"); } catch { return null; } })();
+  const quick = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let finished = false;
+  const finish = () => {
+    if (finished) return; finished = true;
+    try { sessionStorage.setItem("booted", "1"); } catch {}
+    fill.style.width = "100%"; boot.classList.add("done");
+    setTimeout(() => boot.remove(), 600);
+    onDone();
+  };
+  if (seen || quick) { boot.remove(); onDone(); return; }   // only shown once per visit
+  const steps = [
+    "Loading kernel modules", "Mounting /home/almero", "Starting network", "Loading Plasma-style desktop",
+    "Reading CV", "Linking GitHub and LinkedIn", "Welcome",
+  ];
+  const total = 3000; let i = 0;
+  const tick = () => {
+    if (finished) return;
+    if (i >= steps.length) return finish();
+    log.insertAdjacentHTML("beforeend", `<div><b>[ OK ]</b> ${steps[i]}</div>`);
+    log.scrollTop = log.scrollHeight;
+    fill.style.width = Math.round(((i + 1) / steps.length) * 100) + "%";
+    i++; setTimeout(tick, total / steps.length);
+  };
+  tick();
+  boot.addEventListener("click", finish);
+  addEventListener("keydown", finish, { once: true });
+}
+// Boot first, then open About so visitors land on something useful
+runBoot(() => openApp("about"));

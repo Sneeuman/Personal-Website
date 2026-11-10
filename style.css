@@ -286,3 +286,42 @@ table.marks td:last-child, table.marks th:last-child { text-align: right; font-w
   .pad { padding: 18px 16px 24px; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+
+/* ============ WALLPAPER LAYERS ============ */
+#wallpaper .wp { position: absolute; inset: 0; width: 100%; height: 100%; visibility: hidden; }
+html[data-wp="plasma"] #wallpaper .wp[data-wp="plasma"],
+html[data-wp="waves"] #wallpaper .wp[data-wp="waves"],
+html[data-wp="blueprint"] #wallpaper .wp[data-wp="blueprint"],
+html[data-wp="horizon"] #wallpaper .wp[data-wp="horizon"],
+html[data-wp="bokeh"] #wallpaper .wp[data-wp="bokeh"],
+html[data-wp="custom"] #wallpaper .wp[data-wp="custom"] { visibility: visible; }
+.wp-custom { background-size: cover; background-position: center; }
+.wp-grain { z-index: 1; pointer-events: none; }
+
+.wps { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.wp-opt { border: 2px solid var(--border); border-radius: 10px; padding: 5px; background: var(--surface); text-align: left; }
+.wp-opt.on { border-color: var(--accent); }
+.wp-thumb { position: relative; height: 66px; border-radius: 6px; overflow: hidden; margin-bottom: 5px; background: var(--surface-2); }
+.wp-thumb svg, .wp-thumb .wp-custom-thumb { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.wp-thumb .wp-custom-thumb { background-size: cover; background-position: center; display: grid; place-items: center; color: var(--muted); font-size: 26px; }
+.wp-opt b { font-size: 12px; display: block; padding: 0 3px; }
+.wp-note { color: var(--muted); font-size: 12px; margin-top: 8px; }
+.wp-opt.upload { cursor: pointer; }
+
+/* ============ BOOT SCREEN ============ */
+#boot {
+  position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; cursor: pointer;
+  background: radial-gradient(ellipse at 50% 40%, #12335a 0%, #0b1a2f 55%, #050c17 100%); color: #e6edf6;
+  transition: opacity .5s ease, visibility .5s; text-align: center;
+}
+#boot.done { opacity: 0; visibility: hidden; pointer-events: none; }
+.boot-inner { width: min(420px, 86vw); }
+.boot-logo { filter: drop-shadow(0 0 18px rgba(61,174,233,.55)); animation: bootpulse 2.2s ease-in-out infinite; }
+@keyframes bootpulse { 50% { transform: scale(1.06); filter: drop-shadow(0 0 28px rgba(61,174,233,.8)); } }
+#boot h1 { margin: 14px 0 2px; font-size: 24px; letter-spacing: .01em; }
+.boot-sub { color: #92a4bd; margin: 0 0 22px; }
+.boot-bar { height: 6px; border-radius: 6px; background: rgba(255,255,255,.1); overflow: hidden; }
+.boot-bar i { display: block; height: 100%; width: 0; border-radius: 6px; background: linear-gradient(90deg, #1d7fd6, #3daee9, #8bd3ff); transition: width .25s linear; }
+.boot-log { margin-top: 16px; height: 78px; overflow: hidden; text-align: left; font: 12px/1.6 ui-monospace, Menlo, Consolas, monospace; color: #7388a8; }
+.boot-log b { color: #3daee9; font-weight: 700; }
+#boot-skip { position: absolute; bottom: 22px; left: 0; right: 0; color: #5b6f8c; font-size: 12px; pointer-events: none; }

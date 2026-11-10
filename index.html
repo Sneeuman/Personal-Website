@@ -11,16 +11,11 @@
 </head>
 <body>
 
-<!-- Wallpaper -->
+<!-- Wallpaper (one layer is shown at a time, chosen in Appearance) -->
 <div id="wallpaper" aria-hidden="true">
-  <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
-    <defs>
-      <linearGradient id="wg" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="var(--wp-a)"/>
-        <stop offset="1" stop-color="var(--wp-b)"/>
-      </linearGradient>
-    </defs>
-    <rect width="1600" height="900" fill="url(#wg)"/>
+  <svg class="wp" data-wp="plasma" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+    <defs><linearGradient id="g-plasma" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--wp-a)"/><stop offset="1" stop-color="var(--wp-b)"/></linearGradient></defs>
+    <rect width="1600" height="900" fill="url(#g-plasma)"/>
     <polygon points="0,900 0,520 620,900" fill="var(--wp-s1)"/>
     <polygon points="0,900 380,900 1100,180 780,100" fill="var(--wp-s2)"/>
     <polygon points="1600,0 1600,640 900,0" fill="var(--wp-s3)"/>
@@ -28,6 +23,49 @@
     <circle cx="1240" cy="250" r="190" fill="var(--wp-glow)"/>
     <circle cx="300" cy="700" r="260" fill="var(--wp-glow)" opacity=".6"/>
   </svg>
+  <svg class="wp" data-wp="waves" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+    <defs><linearGradient id="g-waves" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--wp-a)"/><stop offset="1" stop-color="var(--wp-b)"/></linearGradient></defs>
+    <rect width="1600" height="900" fill="url(#g-waves)"/>
+    <circle cx="1250" cy="200" r="120" fill="var(--wp-glow)"/>
+    <path d="M0 560 C 260 480 480 640 800 580 S 1360 460 1600 540 V900 H0Z" fill="var(--wp-s3)"/>
+    <path d="M0 650 C 300 560 520 740 860 670 S 1380 570 1600 640 V900 H0Z" fill="var(--wp-s1)"/>
+    <path d="M0 740 C 320 680 560 820 900 760 S 1400 690 1600 750 V900 H0Z" fill="var(--wp-s2)"/>
+  </svg>
+  <svg class="wp" data-wp="blueprint" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <linearGradient id="g-bp" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--wp-a)"/><stop offset="1" stop-color="var(--wp-b)"/></linearGradient>
+      <pattern id="p-small" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="var(--accent)" stroke-opacity=".12"/></pattern>
+      <pattern id="p-big" width="200" height="200" patternUnits="userSpaceOnUse"><path d="M200 0H0V200" fill="none" stroke="var(--accent)" stroke-opacity=".28" stroke-width="1.5"/></pattern>
+    </defs>
+    <rect width="1600" height="900" fill="url(#g-bp)"/>
+    <rect width="1600" height="900" fill="url(#p-small)"/>
+    <rect width="1600" height="900" fill="url(#p-big)"/>
+    <circle cx="1100" cy="420" r="260" fill="none" stroke="var(--accent)" stroke-opacity=".3" stroke-width="2"/>
+    <circle cx="1100" cy="420" r="170" fill="none" stroke="var(--accent)" stroke-opacity=".2" stroke-dasharray="6 10"/>
+    <circle cx="1100" cy="420" r="6" fill="var(--accent)" opacity=".7"/>
+    <path d="M200 700h300l60-80h200" fill="none" stroke="var(--accent)" stroke-opacity=".35" stroke-width="2"/>
+  </svg>
+  <svg class="wp" data-wp="horizon" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <linearGradient id="g-hz" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--wp-a)"/><stop offset=".7" stop-color="var(--wp-b)"/></linearGradient>
+      <radialGradient id="g-sun"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".25" stop-color="var(--accent)" stop-opacity=".55"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></radialGradient>
+    </defs>
+    <rect width="1600" height="900" fill="url(#g-hz)"/>
+    <circle cx="1000" cy="520" r="330" fill="url(#g-sun)"/>
+    <polygon points="0,900 0,600 180,480 340,590 520,430 760,620 980,500 1180,640 1400,520 1600,640 1600,900" fill="var(--wp-s2)"/>
+    <polygon points="0,900 0,700 220,620 420,720 700,610 960,730 1240,640 1600,740 1600,900" fill="var(--wp-s1)"/>
+    <polygon points="0,900 0,790 300,740 640,810 980,760 1300,820 1600,780 1600,900" fill="var(--wp-s3)"/>
+  </svg>
+  <svg class="wp" data-wp="bokeh" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+    <defs><linearGradient id="g-bk" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--wp-a)"/><stop offset="1" stop-color="var(--wp-b)"/></linearGradient><filter id="blur"><feGaussianBlur stdDeviation="28"/></filter></defs>
+    <rect width="1600" height="900" fill="url(#g-bk)"/>
+    <g filter="url(#blur)" fill="var(--accent)">
+      <circle cx="300" cy="260" r="170" opacity=".35"/><circle cx="1180" cy="200" r="230" opacity=".28"/>
+      <circle cx="820" cy="640" r="260" opacity=".25"/><circle cx="1440" cy="700" r="170" opacity=".35"/>
+      <circle cx="140" cy="760" r="140" opacity=".3"/>
+    </g>
+  </svg>
+  <div class="wp wp-custom" data-wp="custom"></div>
   <div class="wp-grain"></div>
 </div>
 
@@ -83,6 +121,18 @@
     <span id="clock-date">—</span>
   </button>
 </footer>
+
+<!-- Boot screen -->
+<div id="boot" role="status" aria-live="polite">
+  <div class="boot-inner">
+    <svg class="boot-logo" viewBox="0 0 32 32" width="84" height="84"><path d="M16 2 28 9v14l-12 7L4 23V9z" fill="none" stroke="#3daee9" stroke-width="1.6" stroke-linejoin="round"/><path d="M11 21 16 10l5 11M12.8 17.5h6.4" fill="none" stroke="#3daee9" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <h1>Almero Badenhorst</h1>
+    <p class="boot-sub">Starting PortfolioOS</p>
+    <div class="boot-bar"><i id="boot-fill"></i></div>
+    <div class="boot-log" id="boot-log"></div>
+  </div>
+  <button id="boot-skip" type="button">Click anywhere or press any key to skip</button>
+</div>
 
 <noscript><p style="position:fixed;inset:0;display:grid;place-items:center;background:#0d1b2e;color:#fff;font-family:sans-serif">This desktop needs JavaScript. You can still reach me at github.com/Sneeuman</p></noscript>
 <script src="app.js"></script>
