@@ -57,12 +57,12 @@ a { color: var(--accent); }
 /* ============ DESKTOP ICONS ============ */
 #desktop { position: fixed; inset: 0 0 0 0; z-index: 1; }
 #icons {
-  position: absolute; top: 14px; left: 10px; bottom: 84px;
-  display: grid; grid-auto-flow: column; grid-template-rows: repeat(auto-fill, 92px);
+  position: absolute; top: 10px; left: 10px; bottom: 80px;
+  display: grid; grid-auto-flow: column; grid-template-rows: repeat(auto-fill, 86px);
   grid-auto-columns: 96px; gap: 4px; align-content: start;
 }
 .dicon {
-  width: 92px; height: 88px; border-radius: 8px; padding: 6px 4px;
+  width: 92px; height: 84px; border-radius: 8px; padding: 4px 4px;
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.7); text-align: center;
   border: 1px solid transparent;

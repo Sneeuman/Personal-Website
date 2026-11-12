@@ -612,5 +612,5 @@ function runBoot(onDone) {
   boot.addEventListener("click", finish);
   addEventListener("keydown", finish, { once: true });
 }
-// Boot first, then open About so visitors land on something useful
-runBoot(() => openApp("about"));
+// Boot, then show the clean desktop. Visitors open About Me (or anything else) themselves.
+runBoot(() => {});
