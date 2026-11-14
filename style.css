@@ -1,4 +1,11 @@
 /* ============ THEMES (all blue-based) ============ */
+/* THEME SYSTEM (read this first)
+Every colour used on the site is a CSS VARIABLE, written var(--name).
+Each theme below just gives those variables different values. JavaScript only
+switches <html data-theme="..."> and the browser re-colours everything.
+Naming: --win-* window colours, --panel-* taskbar, --surface* cards inside
+windows, --wp-* wallpaper colours, --accent the highlight blue.
+:root with no attribute is the default (midnight) so there is never a blank theme. */
 :root,
 :root[data-theme="midnight"] {
   --wp-a: #0b1a2f; --wp-b: #143a63;
@@ -38,6 +45,7 @@
 }
 
 /* ============ BASE ============ */
+/* box-sizing: border-box makes width include padding and border, so sizes add up the way you expect. */
 *,*::before,*::after { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; overflow: hidden; }
 body {
@@ -50,12 +58,16 @@ a { color: var(--accent); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 [hidden] { display: none !important; }
 
+/* LAYERS (back to front): wallpaper (z 0) -> desktop icons + windows (z 1) -> taskbar (z 50) -> popups (z 60) -> boot screen (z 200). */
 #wallpaper { position: fixed; inset: 0; z-index: 0; }
 #wallpaper svg { width: 100%; height: 100%; display: block; }
 .wp-grain { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.25)); }
 
 /* ============ DESKTOP ICONS ============ */
 #desktop { position: fixed; inset: 0 0 0 0; z-index: 1; }
+/* Desktop icon grid. grid-auto-flow: column fills DOWN first, then starts a new column
+when the screen is too short (like real desktop icons). auto-fill rows = "as many 86px
+rows as fit"; the bottom offset leaves room for the taskbar. */
 #icons {
   position: absolute; top: 10px; left: 10px; bottom: 80px;
   display: grid; grid-auto-flow: column; grid-template-rows: repeat(auto-fill, 86px);
@@ -69,15 +81,20 @@ a { color: var(--accent); }
 }
 :root[data-theme="daylight"] .dicon { color: #0e2742; text-shadow: 0 1px 2px rgba(255,255,255,.7); }
 .dicon:hover { background: rgba(255,255,255,.12); }
+/* color-mix() blends the accent colour with transparent, giving a see-through tint that
+works on EVERY theme without writing a colour per theme. */
 .dicon.selected { background: color-mix(in srgb, var(--accent) 38%, transparent); border-color: var(--accent); }
 .dicon .ico { width: 46px; height: 46px; display: grid; place-items: center; filter: drop-shadow(0 3px 5px rgba(0,0,0,.35)); }
 .dicon span { font-size: 12.5px; line-height: 1.15; }
 
 /* app icon chip */
+/* (App icons are inline SVG, so they scale to any size with no blur.) */
 .ico svg { width: 100%; height: 100%; }
 .chip { border-radius: 12px; display: grid; place-items: center; color: #fff; }
 
 /* ============ WINDOWS ============ */
+/* #windows is a transparent layer the windows live in. pointer-events:none lets clicks fall
+THROUGH empty areas to the desktop; each window turns it back on (.win pointer-events:auto). */
 #windows { position: absolute; inset: 0 0 76px 0; pointer-events: none; }
 .win {
   position: absolute; pointer-events: auto; display: flex; flex-direction: column;
@@ -85,10 +102,15 @@ a { color: var(--accent); }
   border: 1px solid var(--border); overflow: hidden; min-width: 300px; min-height: 200px;
   animation: pop .16s ease-out;
 }
+/* Little "pop in" animation used by windows and popups: starts slightly smaller and lower. */
 @keyframes pop { from { opacity: 0; transform: scale(.96) translateY(8px); } }
 .win.minimized { display: none; }
+/* !important is needed here because JavaScript sets the window's left/top/width/height as
+INLINE styles while dragging; inline styles normally beat CSS, so we must out-shout them. */
 .win.maximized { inset: 0 !important; width: auto !important; height: auto !important; border-radius: 0; }
 .win.inactive .titlebar { background: var(--win-bar-inactive); color: var(--muted); }
+/* touch-action: none stops the browser scrolling the page when a finger drags the title bar,
+so our own drag code receives the movement instead. */
 .titlebar {
   display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 6px 0 12px;
   background: var(--win-bar); cursor: grab; touch-action: none; flex: none;
@@ -103,6 +125,8 @@ a { color: var(--accent); }
 .wbtn.close:hover { background: #da4453; color: #fff; }
 .wbtn svg { width: 14px; height: 14px; }
 .win-body { flex: 1; min-height: 0; overflow: auto; user-select: text; position: relative; }
+/* Invisible resize handles on the right edge (.e), bottom edge (.s) and corner (.se).
+Negative offsets push them half outside the window so they are easy to grab. */
 .rz { position: absolute; z-index: 5; }
 .rz.e { right: -3px; top: 10px; bottom: 10px; width: 8px; cursor: ew-resize; }
 .rz.s { bottom: -3px; left: 10px; right: 10px; height: 8px; cursor: ns-resize; }
@@ -110,6 +134,8 @@ a { color: var(--accent); }
 .win.maximized .rz { display: none; }
 
 /* ============ PANEL ============ */
+/* The taskbar. backdrop-filter: blur() frosts whatever is behind it (the "glass" effect);
+the -webkit- twin is for Safari. The panel colour is semi-transparent so the blur shows. */
 #panel {
   position: fixed; z-index: 50; left: 10px; right: 10px; bottom: 10px; height: 54px;
   display: flex; align-items: center; gap: 6px; padding: 0 8px;
@@ -130,6 +156,7 @@ a { color: var(--accent); }
 .task:hover { background: var(--surface-2); }
 .task .ti { width: 20px; height: 20px; flex: none; }
 .task .tl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The little line under each taskbar button: grey = open, accent colour = active window. */
 .task::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: 2px; height: 3px; border-radius: 3px; background: var(--muted); opacity: .6; }
 .task.active { background: color-mix(in srgb, var(--accent) 22%, transparent); }
 .task.active::after { background: var(--accent); opacity: 1; }
@@ -142,6 +169,7 @@ a { color: var(--accent); }
 #clock-date { font-size: 11px; color: var(--muted); }
 
 /* ============ POPUPS ============ */
+/* Shared look for the launcher and the calendar popup. */
 .popup {
   position: fixed; z-index: 60; background: var(--popup-bg); border: 1px solid var(--border);
   border-radius: 14px; box-shadow: var(--shadow); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
@@ -184,6 +212,8 @@ h2.app-h { margin: 0 0 4px; font-size: 22px; letter-spacing: -.01em; }
 p { line-height: 1.6; margin: 0 0 10px; }
 
 .about-hero { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
+/* Your photo circle. The double box-shadow draws two rings with no extra elements:
+a 4px ring in the surface colour, then a 6px ring in the accent colour outside it. */
 .photo {
   width: 132px; height: 132px; border-radius: 50%; flex: none; position: relative; overflow: hidden;
   background: linear-gradient(135deg, var(--accent), #1b4c82); display: grid; place-items: center;
@@ -226,6 +256,8 @@ table.marks td:last-child, table.marks th:last-child { text-align: right; font-w
 .seg button { padding: 6px 13px; border-radius: 7px; font-size: 13px; color: var(--muted); font-weight: 600; }
 .seg button.on { background: var(--accent); color: var(--accent-ink); }
 .cv-bar .grow { flex: 1; }
+/* The CV viewer is a flex column: toolbar on top, the PDF frame fills ALL remaining space
+(flex: 1). min-height: 0 lets a flex child shrink, otherwise the PDF could overflow. */
 .cv iframe, .cv object { flex: 1; width: 100%; border: 0; background: #fff; min-height: 0; }
 .cv-fallback { padding: 30px; text-align: center; color: var(--muted); }
 
@@ -268,6 +300,9 @@ table.marks td:last-child, table.marks th:last-child { text-align: right; font-w
 .theme-opt small { color: var(--muted); }
 
 /* ============ MOBILE ============ */
+/* PHONES (screens 720px wide or less). Windows become full-screen: !important beats the
+inline sizes set by JavaScript, the resize handles are hidden and the taskbar shows
+only icons. The same breakpoint (720) is used by mobile() in app.js, keep them equal. */
 @media (max-width: 720px) {
   #icons { grid-template-rows: repeat(auto-fill, 90px); grid-auto-columns: 86px; top: 10px; left: 4px; }
   .dicon { width: 82px; }
@@ -285,9 +320,17 @@ table.marks td:last-child, table.marks th:last-child { text-align: right; font-w
   #clock-date { display: none; }
   .pad { padding: 18px 16px 24px; }
 }
+/* Respect the visitor's "reduce motion" system setting by turning off CSS animations. */
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
 
 /* ============ WALLPAPER LAYERS ============ */
+/* HOW WALLPAPER SWITCHING WORKS
+All wallpaper layers sit on top of each other in index.html. Only the layer matching
+<html data-wp="..."> is made visible, the others stay hidden.
+We use visibility:hidden, NOT display:none, on purpose: SVG gradients and patterns
+inside a display:none element stop working for the thumbnails that copy them.
+The "#wallpaper" prefix on the show-rules below raises their specificity so they win
+over the hide-rule here (an id selector outweighs a class selector). */
 #wallpaper .wp { position: absolute; inset: 0; width: 100%; height: 100%; visibility: hidden; }
 html[data-wp="plasma"] #wallpaper .wp[data-wp="plasma"],
 html[data-wp="waves"] #wallpaper .wp[data-wp="waves"],
@@ -309,6 +352,8 @@ html[data-wp="custom"] #wallpaper .wp[data-wp="custom"] { visibility: visible; }
 .wp-opt.upload { cursor: pointer; }
 
 /* ============ BOOT SCREEN ============ */
+/* Boot screen: covers everything (z 200). When JavaScript adds .done it fades out with
+opacity and becomes click-through, then the element is deleted from the page. */
 #boot {
   position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; cursor: pointer;
   background: radial-gradient(ellipse at 50% 40%, #12335a 0%, #0b1a2f 55%, #050c17 100%); color: #e6edf6;
@@ -331,6 +376,8 @@ html[data-wp="aurora"] #wallpaper .wp[data-wp="aurora"],
 html[data-wp="rain"] #wallpaper .wp[data-wp="rain"] { visibility: visible; }
 #wallpaper canvas.wp { image-rendering: auto; }
 /* these two are always dark, so keep desktop labels light even in the Daylight theme */
+/* Aurora and rain are always dark, so desktop icon labels stay white even if the visitor
+picked the light "Daylight" theme (otherwise dark text would vanish on the dark sky). */
 :root[data-wp="aurora"] .dicon, :root[data-wp="rain"] .dicon { color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
 .wp-thumb .live-aurora { background:
   radial-gradient(60% 40% at 30% 55%, rgba(47,91,255,.9), transparent 70%),
@@ -340,3 +387,7 @@ html[data-wp="rain"] #wallpaper .wp[data-wp="rain"] { visibility: visible; }
   repeating-linear-gradient(105deg, transparent 0 9px, rgba(130,175,255,.45) 9px 10px),
   linear-gradient(#030a1f, #0b2470); }
 .live-badge { position: absolute; top: 4px; right: 4px; font-size: 9px; font-weight: 700; letter-spacing: .06em; padding: 2px 5px; border-radius: 99px; background: var(--accent); color: var(--accent-ink); }
+
+/* Project buttons ("Open website" + "View on GitHub") sit side by side and wrap on narrow cards. */
+.proj-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.proj-links .btn { padding: 7px 12px; font-size: 12.5px; }

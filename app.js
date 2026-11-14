@@ -1,6 +1,32 @@
 /* =====================================================================
-   ALMERO BADENHORST | PORTFOLIO DESKTOP
-   Everything you will want to edit lives in the CONFIG block below.
+   ALMERO BADENHORST | PORTFOLIO DESKTOP  (app.js)
+
+   WHAT THIS FILE DOES
+   The whole website is a pretend desktop operating system. There is no
+   framework and no build step: index.html holds the empty "skeleton"
+   (wallpaper, icon area, panel, popups) and THIS file fills it with life.
+
+   HOW IT IS ORGANISED (top to bottom, each part has a banner comment)
+     1. CONFIG ........ all your text/data. Edit this to change content.
+     2. HELPERS ....... tiny utilities used everywhere ($, el, esc, store)
+     3. ICONS/THEMES .. inline SVG icons and the colour themes
+     4. APP CONTENT ... functions that return the HTML for each window
+     5. LIVE WALLPAPER  canvas animations (aurora and rain)
+     6. APP REGISTRY .. the list of "programs" the desktop can open
+     7. WINDOW MANAGER  open / focus / minimise / drag / resize windows
+     8. DESKTOP, LAUNCHER, CLOCK, BOOT SCREEN
+
+   THE BIG IDEA (read this first if you are new)
+   Every window is built the same way:
+        APPS[id].render()  ->  returns an HTML string  ->  openApp() puts it
+        inside a draggable <section class="win"> and adds a taskbar button.
+   Adding a new "program" = write one function that returns HTML and add one
+   line to APPS. Nothing else needs to change.
+
+   TERMS USED IN THE COMMENTS
+   DOM ....... the live page the browser builds from the HTML
+   state ..... data the code remembers (e.g. which windows are open)
+   callback .. a function handed to another function to be run later
    ===================================================================== */
 const CONFIG = {
   name: "Almero Badenhorst",
@@ -65,9 +91,11 @@ const CONFIG = {
       stack: ["Android Studio", "Java", "Firebase"], repo: "",
     },
     {
-      tag: "Game · In development", name: "Blind Scribe",
-      points: ["Co-developing a game in C# with a friend.", "Game-design direction plus selected components."],
-      stack: ["C#", "Game design", "GitHub"], repo: "",
+      tag: "Web app · Open source", name: "QR Studio (QR Code Creator)",
+      points: ["A free QR code website anyone can use: 11 content types, custom patterns, gradients, logos and frames.", "Reads every code back with a decoder to check it scans, plus bulk ZIP export.", "Private by design: runs fully in the browser, works offline."],
+      stack: ["JavaScript", "SVG", "Canvas", "HTML", "CSS", "PWA"],
+      repo: "https://github.com/Sneeuman/QR-Code-Creator",
+      live: "https://sneeuman.github.io/QR-Code-Creator/",
     },
     {
       tag: "Networking", name: "Network Configuration",
@@ -76,20 +104,45 @@ const CONFIG = {
     },
   ],
 };
-// To link a project to its repo, paste the URL in `repo` above, e.g. repo: "https://github.com/Sneeuman/blind-scribe"
+/* HOW TO ADD A PROJECT: copy one object in `projects` above and fill in:
+     tag    small label above the title        name   the title
+     points bullet points (keep them short)    stack  tech chips at the bottom
+     repo   (optional) GitHub link  -> shows a "View on GitHub" button
+     live   (optional) website link -> shows an "Open website" button
+   Leave `repo` / `live` out (or "") and the matching button simply isn't drawn. */
 
 /* ===================== HELPERS ===================== */
+/* Shortcuts so the rest of the file stays readable.
+   $("#id")        = document.querySelector("#id")  (find ONE element)
+   $("x", parent)  = search only inside `parent` */
 const $ = (s, r = document) => r.querySelector(s);
+/* el("div", {className:"box"}, "<b>hi</b>") builds a new element in one line.
+   Object.assign copies the attrs (className, title, ...) onto the element. */
 const el = (tag, attrs = {}, html = "") => { const e = document.createElement(tag); Object.assign(e, attrs); if (html) e.innerHTML = html; return e; };
+/* SECURITY: whenever text is put into a template string that becomes innerHTML,
+   it passes through esc() first. It swaps < > & " for harmless codes, so
+   text like "<script>" is shown as text and can never run as code. */
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+/* localStorage remembers things between visits (theme, wallpaper).
+   Browsers can block it (private mode, strict settings) and then it THROWS an
+   error, so every read/write is wrapped in try/catch. If it fails the site
+   still works, it just forgets your choice. */
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch {} },
 };
+/* True on phone-width screens. A function (not a constant) so it is re-checked
+   every time, because the user can rotate the phone or resize the window. */
 const mobile = () => matchMedia("(max-width: 720px)").matches;
 
 /* ===================== ICONS ===================== */
+/* The GitHub logo as an SVG "path" (a list of drawing commands: M = move,
+   C = curve, L = line, z = close). It is drawn on a 16x16 grid. */
 const GH_PATH = "M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z";
+/* chip() makes the coloured rounded-square app icons.
+   It nests one <svg> inside another: the outer 48x48 draws the coloured tile,
+   the inner 28x28 (placed at x=10,y=10) draws the white line-icon on top.
+   Because SVG scales without blurring, the icons stay sharp at any size. */
 const chip = (bg, inner, vb = "0 0 24 24") =>
   `<svg viewBox="0 0 48 48"><rect x="2" y="2" width="44" height="44" rx="12" fill="${bg}"/><svg x="10" y="10" width="28" height="28" viewBox="${vb}" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</svg></svg>`;
 const ICON = {
@@ -112,6 +165,11 @@ const UI = {
 };
 
 /* ===================== THEMES ===================== */
+/* HOW THEMING WORKS
+   style.css defines every colour as a CSS variable (--accent, --win-bg, ...)
+   once per theme, e.g.  :root[data-theme="daylight"] { --accent: #1d7fd6; }
+   setTheme() only flips the data-theme attribute on <html>. The browser then
+   re-colours the whole page instantly: no JavaScript touches individual colours. */
 const THEMES = [
   { id: "midnight", name: "Midnight Blue", note: "Dark, Plasma-style", a: "#0b1a2f", b: "#1b4c82", bar: "#3daee9" },
   { id: "daylight", name: "Daylight",      note: "Light and airy",     a: "#cfe6fb", b: "#5d9fe0", bar: "#1d7fd6" },
@@ -125,12 +183,17 @@ function setTheme(id) {
   if (meta) meta.content = THEMES.find(t => t.id === id).a;
   document.querySelectorAll(".theme-opt").forEach(b => b.classList.toggle("on", b.dataset.id === id));
 }
+/* Used by the taskbar button and the Terminal: moves to the next theme and
+   wraps back to the first one (the % does the wrap-around). */
 const cycleTheme = () => {
   const cur = THEMES.findIndex(t => t.id === document.documentElement.dataset.theme);
   setTheme(THEMES[(cur + 1) % THEMES.length].id);
 };
 
 /* ===================== APP CONTENT ===================== */
+/* Shows your photo if assets/photo.jpg exists. The initials sit BEHIND it.
+   If the image file is missing, onerror removes the broken <img>, so the
+   initials show instead: no broken-image icon, no extra code needed. */
 const photoBlock = () => `
   <div class="photo" role="img" aria-label="Photo of ${esc(CONFIG.name)}">
     ${CONFIG.name.split(" ").map(w => w[0]).join("").slice(0, 2)}
@@ -159,6 +222,9 @@ function aboutApp() {
   </div>`;
 }
 
+/* Builds one card per project by looping over CONFIG.projects with .map(),
+   then .join("") glues the pieces into one HTML string. The `cond ? html : ""`
+   pattern is how optional parts (the buttons) are included or skipped. */
 function projectsApp() {
   return `<div class="pad"><h2 class="app-h">Projects</h2><p class="sub">Things I've built, from backend systems to full-stack apps.</p>
   <div class="proj-grid">${CONFIG.projects.map(p => `
@@ -166,7 +232,10 @@ function projectsApp() {
       <span class="tag">${esc(p.tag)}</span><h4>${esc(p.name)}</h4>
       <ul>${p.points.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
       <div class="chips">${p.stack.map(s => `<span class="chip2">${esc(s)}</span>`).join("")}</div>
-      ${p.repo ? `<a class="btn ghost" href="${esc(p.repo)}" target="_blank" rel="noopener">View on GitHub</a>` : ""}
+      ${p.live || p.repo ? `<div class="proj-links">
+        ${p.live ? `<a class="btn" href="${esc(p.live)}" target="_blank" rel="noopener">Open website</a>` : ""}
+        ${p.repo ? `<a class="btn ghost" href="${esc(p.repo)}" target="_blank" rel="noopener">View on GitHub</a>` : ""}
+      </div>` : ""}
     </article>`).join("")}
   </div></div>`;
 }
@@ -182,6 +251,10 @@ function cvApp(root) {
     <iframe id="cv-frame" title="Curriculum vitae"></iframe>
   </div>`;
   const frame = $("#cv-frame", root), open = $("#cv-open", root), dl = $("#cv-dl", root);
+  /* show(i) switches between the short resume and the full CV.
+     The "#toolbar=0&navpanes=0&view=FitH" part after the file name is a PDF
+     "open parameter": it hides the PDF toolbar and side panel and fits the
+     page to the window width. */
   const show = i => {
     const f = CONFIG.cvFiles[i].file;
     frame.src = f + "#toolbar=0&navpanes=0&view=FitH";
@@ -190,6 +263,9 @@ function cvApp(root) {
   };
   root.querySelectorAll(".seg button").forEach(b => b.onclick = () => show(+b.dataset.i));
   show(0);
+  /* Most phone browsers can't display a PDF inside an <iframe> (you'd see a
+     blank box). `(pointer: coarse)` means "touch screen". On those devices the
+     frame is replaced with a message pointing at the two buttons above. */
   // Phones usually can't embed PDFs, so offer open/download buttons instead
   if (matchMedia("(pointer: coarse)").matches || mobile()) {
     frame.replaceWith(el("div", { className: "cv-fallback" }, `<p>Tap <b>Open in tab</b> to read the CV in your browser, or <b>Download PDF</b> to save it.</p>`));
@@ -219,17 +295,39 @@ function connectionsApp() {
 }
 
 /* ===================== LIVE WALLPAPERS (canvas) ===================== */
+/* The live wallpapers are drawn on an HTML <canvas> (a pixel surface you paint
+   on with JavaScript) and redrawn ~30-60 times per second.
+
+   `(() => { ... })()` is an IIFE: a function that runs immediately. Variables
+   declared inside (raf, ctx, stars...) stay PRIVATE, which acts like a small
+   module. Only the object returned at the bottom, with set(), is exposed.
+
+   Performance choices (all deliberate):
+     - Aurora is soft anyway, so it is drawn at 50% size (35% on phones) and the
+       browser scales it up: 4x fewer pixels to paint.
+     - Aurora is capped to ~30 frames/second; rain uses ~60.
+     - Animation stops completely when the tab is hidden.
+     - If the user asked their OS for "reduced motion", only ONE still frame is
+       drawn (accessibility, and it saves battery). */
 const live = (() => {
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
   let raf = 0, mode = null, cv = null, ctx = null, w = 0, h = 0, lastDraw = 0;
   let stars = [], drops = [];
   const rnd = (a, b) => a + Math.random() * (b - a);
+  /* Each aurora ribbon is described by numbers:
+       base  vertical position (0 = top, 1 = bottom)   amp  how high it waves
+       f1,f2 how many waves across the screen          s1,s2 how fast it moves
+       th    thickness of the ribbon                   c1,c2 colours [R,G,B]
+       a     opacity */
   const BANDS = [
     { base: .30, amp: .07, f1: 1.6, f2: 3.1, s1: .16, s2: .11, th: .26, c1: [47, 91, 255],  c2: [20, 50, 190], a: .55 },
     { base: .40, amp: .09, f1: 1.2, f2: 2.6, s1: .12, s2: .17, th: .30, c1: [60, 110, 255], c2: [25, 60, 200], a: .45 },
     { base: .48, amp: .06, f1: 2.1, f2: 4.0, s1: .20, s2: .09, th: .22, c1: [95, 150, 255], c2: [40, 80, 220], a: .35 },
     { base: .26, amp: .05, f1: 2.8, f2: 1.7, s1: .09, s2: .14, th: .20, c1: [30, 70, 230],  c2: [15, 40, 160], a: .40 },
   ];
+  /* Called at start and whenever the window is resized. Setting canvas.width /
+     canvas.height also clears the canvas, so we re-create the stars and rain
+     drops to match the new size. */
   function size() {
     if (!cv) return;
     const k = mode === "aurora" ? (mobile() ? 0.35 : 0.5) : 1;   // aurora is soft, so render it small and let the browser scale it
@@ -240,6 +338,11 @@ const live = (() => {
   }
   function newDrop(anywhere) { return { x: rnd(-50, innerWidth + 50), y: anywhere ? rnd(0, innerHeight) : rnd(-120, -10), l: rnd(14, 38), v: rnd(620, 1000), a: rnd(.18, .6) }; }
 
+  /* One frame of the aurora. `t` = seconds since the page loaded.
+     1) paint the dark night-sky gradient   2) twinkle the stars with sin()
+     3) draw each ribbon as a wavy filled shape.
+     "lighter" blending ADDS colours where ribbons overlap, so the overlaps glow
+     brighter, which is what makes it look like light and not flat paint. */
   function drawAurora(t) {
     const g = ctx.createLinearGradient(0, 0, 0, h);
     g.addColorStop(0, "#02061a"); g.addColorStop(.5, "#081d63"); g.addColorStop(1, "#0f2f96");
@@ -250,13 +353,21 @@ const live = (() => {
       const top = [], step = Math.max(4, w / 160);
       for (let x = 0; x <= w + step; x += step) {
         const u = x / w * 6.283;
+        /* The wave shape: two sine waves added together. Because "t" is inside
+           the sin(), the wave slides sideways as time passes. Mixing two waves
+           of different speed/length makes the movement look natural, not
+           mechanical. (u converts x pixels into 0..2*PI so a wave fits the width.) */
         const y = h * b.base + Math.sin(u * b.f1 + t * b.s1 * 3) * h * b.amp + Math.sin(u * b.f2 - t * b.s2 * 3) * h * b.amp * .55;
+        // The ribbon's thickness also breathes slowly (between 75% and 100%).
         const th = h * b.th * (.75 + .25 * Math.sin(u * 1.3 + t * .35));
         top.push([x, y, th]);
       }
       const g2 = ctx.createLinearGradient(0, h * (b.base - b.amp * 1.5), 0, h * (b.base + b.amp * 1.5 + b.th));
       g2.addColorStop(0, `rgba(${b.c1},0)`); g2.addColorStop(.28, `rgba(${b.c1},${b.a})`);
       g2.addColorStop(.65, `rgba(${b.c2},${b.a * .45})`); g2.addColorStop(1, `rgba(${b.c2},0)`);
+      /* Build the ribbon outline: walk along the TOP edge left to right, then
+         come back along the BOTTOM edge (top + thickness) right to left, and
+         close the shape. The vertical gradient fades it out at both edges. */
       ctx.fillStyle = g2; ctx.beginPath(); ctx.moveTo(top[0][0], top[0][1]);
       for (const p of top) ctx.lineTo(p[0], p[1]);
       for (let i = top.length - 1; i >= 0; i--) ctx.lineTo(top[i][0], top[i][1] + top[i][2]);
@@ -264,6 +375,10 @@ const live = (() => {
     }
     ctx.globalCompositeOperation = "source-over";
   }
+  /* One frame of the rain. `dt` = seconds since the last frame, so drops fall at
+     the same real-world speed on a 30Hz and a 144Hz screen (distance = speed x
+     time). Each drop is a short slanted line; when it leaves the bottom it is
+     recycled at the top (Object.assign reuses the object = no memory churn). */
   function drawRain(t, dt) {
     const g = ctx.createLinearGradient(0, 0, 0, h);
     g.addColorStop(0, "#030a1f"); g.addColorStop(.6, "#08205e"); g.addColorStop(1, "#0d2c8a");
@@ -279,6 +394,10 @@ const live = (() => {
       if (d.y - d.l > h) Object.assign(d, newDrop(false));
     }
   }
+  /* The animation loop. requestAnimationFrame asks the browser to call us right
+     before it paints the next screen frame, and it pauses automatically in
+     background tabs. We re-schedule ourselves first, then skip drawing if less
+     than minGap milliseconds have passed (the frame-rate cap). */
   function frame(now) {
     raf = requestAnimationFrame(frame);
     const minGap = mode === "aurora" ? 33 : 16;           // aurora at ~30fps is plenty and saves battery
@@ -292,9 +411,12 @@ const live = (() => {
     if (reduced) { mode === "aurora" ? drawAurora(4) : drawRain(0, 0); return; }   // still frame for reduced-motion users
     lastDraw = 0; raf = requestAnimationFrame(frame);
   }
+  // Stop the loop while the tab is hidden, restart when it becomes visible again.
   document.addEventListener("visibilitychange", () => document.hidden ? stop() : start());
   addEventListener("resize", () => { if (mode) { size(); if (reduced) start(); } });
   return {
+    /* Public method: switch to "aurora" or "rain". Any other id (a still
+       wallpaper) just stops the animation. */
     set(id) {
       mode = (id === "aurora" || id === "rain") ? id : null;
       if (!mode) { stop(); return; }
@@ -308,6 +430,10 @@ const WALLPAPERS = [
   { id: "plasma", name: "Plasma" }, { id: "waves", name: "Waves" }, { id: "blueprint", name: "Blueprint" },
   { id: "horizon", name: "Horizon" }, { id: "bokeh", name: "Bokeh" },
 ];
+/* Choosing a wallpaper only sets data-wp="..." on <html>; style.css shows the
+   matching layer and hides the rest (look for "WALLPAPER LAYERS" in the CSS).
+   Unknown or missing ids fall back to "aurora" so a stale saved value from an
+   old version can never leave the desktop blank. */
 function setWallpaper(id) {
   if (id === "custom" && !store.get("wp-custom")) id = "aurora";
   if (id !== "custom" && !WALLPAPERS.some(w => w.id === id)) id = "aurora";
@@ -317,6 +443,10 @@ function setWallpaper(id) {
   if (id === "custom") $(".wp-custom").style.backgroundImage = `url("${store.get("wp-custom")}")`;
   document.querySelectorAll(".wp-opt").forEach(b => b.classList.toggle("on", b.dataset.id === id));
 }
+/* The user's own picture. Phones take 4000px photos, far too big to store, so:
+   load it into an <img>, copy it onto a canvas scaled down to max 1920px,
+   export it as a compressed JPEG data-URL (the picture written as text) and
+   keep that in localStorage (limit is ~5MB, hence the shrinking). */
 function uploadWallpaper(file, done) {
   if (!file || !file.type.startsWith("image/")) return;
   const img = new Image(), url = URL.createObjectURL(file);
@@ -330,6 +460,10 @@ function uploadWallpaper(file, done) {
   };
   img.src = url;
 }
+/* Builds the thumbnail buttons in the Appearance window. For still wallpapers it
+   CLONES the real SVG from the page so the thumbnail is always identical to the
+   wallpaper. ids are removed from the clone because the page must never contain
+   two elements with the same id. */
 function wallpaperSection(root) {
   const grid = $(".wps", root);
   WALLPAPERS.forEach(w => {
@@ -370,11 +504,15 @@ function settingsApp() {
 }
 
 /* ----- Terminal ----- */
+/* A small fake terminal. Pattern: `cmds` is a lookup table of
+   command-name -> function. Typing "skills" runs cmds.skills(). Unknown names
+   fall through to a "command not found" message, like a real shell. */
 function terminalApp(root) {
   root.innerHTML = `<div class="term" id="term"><div id="tout"></div>
     <label class="row"><span class="pr">almero@portfolio</span><span class="dim">:~$</span><input id="tin" autocomplete="off" spellcheck="false" aria-label="Terminal input"></label></div>`;
   const out = $("#tout", root), input = $("#tin", root), term = $("#term", root);
   const print = (t, cls = "") => { out.append(el("div", { className: "ln " + cls }, t)); term.scrollTop = term.scrollHeight; };
+  // hist = commands typed so far, hi = position while browsing with the arrow keys.
   const hist = []; let hi = 0;
   const cmds = {
     help: () => print(`Commands:\n  <span class="ac">about</span>     who I am\n  <span class="ac">skills</span>    what I work with\n  <span class="ac">projects</span>  what I've built\n  <span class="ac">contact</span>   how to reach me\n  <span class="ac">neofetch</span>  system info\n  <span class="ac">theme</span>     cycle the theme\n  <span class="ac">wallpaper</span> cycle the wallpaper\n  <span class="ac">open</span> &lt;app&gt;  open: cv, github, linkedin, projects\n  <span class="ac">clear</span>     clear the screen`),
@@ -400,6 +538,9 @@ function terminalApp(root) {
     if (e.key === "Enter") {
       const raw = input.value.trim(); input.value = "";
       print(`<span class="pr">almero@portfolio</span><span class="dim">:~$</span> ${esc(raw)}`);
+      /* Split "open cv" into the command ("open") and arguments ("cv").
+         `[c, ...a]` is array destructuring: first word -> c, the rest -> a.
+         `cmds[name] || fallback` picks the handler, then ( ... )(args) calls it. */
       if (raw) { hist.push(raw); hi = hist.length; const [c, ...a] = raw.split(/\s+/); (cmds[c.toLowerCase()] || (() => print(`${esc(c)}: command not found. Try <span class="ac">help</span>.`)))(a.join(" ").toLowerCase()); }
     } else if (e.key === "ArrowUp") { if (hi > 0) input.value = hist[--hi]; e.preventDefault(); }
     else if (e.key === "ArrowDown") { input.value = hi < hist.length - 1 ? hist[++hi] : (hi = hist.length, ""); e.preventDefault(); }
@@ -409,6 +550,11 @@ function terminalApp(root) {
 }
 
 /* ===================== APP REGISTRY ===================== */
+/* The list of "programs". Each entry has:
+     title, icon, w/h (default window size), desc (shown in the launcher) and
+     EITHER render(root) -> simple pages: just put HTML into the window
+     OR     init(root)   -> interactive pages (CV, Terminal) that need to attach
+                            event listeners after the HTML exists. */
 const APPS = {
   about:       { title: "About Me",    icon: ICON.about,       w: 760, h: 600, desc: "Who I am and what I do", render: r => r.innerHTML = aboutApp() },
   cv:          { title: "CV",          icon: ICON.cv,          w: 820, h: 640, desc: "Resume and full CV", init: cvApp },
@@ -424,9 +570,22 @@ const LINKS = [
 ];
 
 /* ===================== WINDOW MANAGER ===================== */
+/* `wins` remembers every open window: id -> { root (the element), task (its
+   taskbar button), min, active, max }. A Map is like an object but is built
+   for adding/removing keys and remembers insertion order.
+   zTop is a counter: the most recently clicked window gets ++zTop as its CSS
+   z-index, so it always sits on top of the others. */
 const wins = new Map(); let zTop = 10, cascade = 0;
 const winLayer = $("#windows"), tasksEl = $("#tasks");
 
+/* Opening a window, step by step:
+   1. Already open? Just restore/focus it (no duplicates) and stop.
+   2. Create the <section>, size it (never bigger than the screen).
+   3. Position it centred, shifted by `cascade` so new windows stack diagonally
+      instead of hiding each other exactly.
+   4. Fill in the title bar + body, call the app's render/init.
+   5. Add its button to the taskbar and register it in `wins`.
+   6. Wire up the buttons, dragging and resizing, then focus it. */
 function openApp(id) {
   if (wins.has(id)) { const w = wins.get(id); if (w.min) restore(id); focusWin(id); return; }
   const app = APPS[id];
@@ -434,6 +593,7 @@ function openApp(id) {
   root.setAttribute("role", "dialog"); root.setAttribute("aria-label", app.title);
   const vw = winLayer.clientWidth, vh = winLayer.clientHeight;
   const w = Math.min(app.w, vw - 24), h = Math.min(app.h, vh - 24);
+  // cascade++ % 6 -> offsets 0,28,56,... then wraps after 6 windows so they never drift off screen.
   const off = (cascade++ % 6) * 28;
   root.style.width = w + "px"; root.style.height = h + "px";
   root.style.left = Math.max(8, Math.min((vw - w) / 2 + 40 + off - 90, vw - w - 8)) + "px";
@@ -453,6 +613,8 @@ function openApp(id) {
 
   const task = el("button", { className: "task" }, `<span class="ti">${app.icon}</span><span class="tl">${esc(app.title)}</span>`);
   task.title = app.title;
+  /* Taskbar button behaves like Windows/KDE: minimised -> restore; already the
+     active window -> minimise; otherwise -> bring to front. */
   task.onclick = () => { const s = wins.get(id); if (s.min) { restore(id); focusWin(id); } else if (s.active) minimize(id); else focusWin(id); };
   tasksEl.append(task);
 
@@ -469,6 +631,9 @@ function openApp(id) {
   enableDrag(root, tb, state); enableResize(root);
   focusWin(id);
 }
+/* Marks exactly ONE window as active: toggles the "inactive" (dimmed title bar)
+   and "active" (taskbar highlight) classes on all windows, then raises the
+   chosen one. toggle(name, condition) adds the class when condition is true. */
 function focusWin(id) {
   wins.forEach((s, k) => { const on = k === id; s.active = on && !s.min; s.root.classList.toggle("inactive", !on); s.task.classList.toggle("active", s.active); });
   const s = wins.get(id); if (s) s.root.style.zIndex = ++zTop;
@@ -476,8 +641,17 @@ function focusWin(id) {
 function minimize(id) { const s = wins.get(id); s.min = true; s.active = false; s.root.classList.add("minimized"); s.task.classList.remove("active"); s.task.classList.add("min"); }
 function restore(id) { const s = wins.get(id); s.min = false; s.root.classList.remove("minimized"); s.task.classList.remove("min"); }
 function toggleMax(id) { const s = wins.get(id); s.max = !s.max; s.root.classList.toggle("maximized", s.max); }
+// After closing, hand focus to the next-highest visible window (sorted by z-index).
 function closeWin(id) { const s = wins.get(id); s.root.remove(); s.task.remove(); wins.delete(id); const next = [...wins.values()].filter(w => !w.min).sort((a, b) => b.root.style.zIndex - a.root.style.zIndex)[0]; if (next) focusWin(next.id); }
 
+/* DRAGGING with Pointer Events (one API for mouse, touch and pen).
+   pointerdown   remember where the mouse started and where the window was.
+   setPointerCapture  keeps sending move events to the title bar even if the
+                 cursor outruns it (so the drag never "drops" the window).
+   pointermove   new position = start position + how far the mouse has moved.
+   Math.min/max "clamp" the result so you can't lose a window off-screen: at
+   least 120px stays visible horizontally and the title bar stays reachable.
+   Disabled when maximised or on phones (windows are full-screen there). */
 function enableDrag(root, handle, state) {
   handle.addEventListener("pointerdown", e => {
     if (e.target.closest(".wbtns") || state.max || mobile()) return;
@@ -492,6 +666,10 @@ function enableDrag(root, handle, state) {
     handle.addEventListener("pointermove", mv); handle.addEventListener("pointerup", up);
   });
 }
+/* RESIZING uses the same pointer-capture trick on three invisible handles (right
+   edge "e", bottom edge "s", corner "se"; they're the <i class="rz"> elements).
+   The "d" letters say which sizes the handle may change. Minimums (300x200)
+   stop windows from being squashed into uselessness. */
 function enableResize(root) {
   root.querySelectorAll(".rz").forEach(h => h.addEventListener("pointerdown", e => {
     e.preventDefault(); e.stopPropagation(); h.setPointerCapture(e.pointerId);
@@ -507,6 +685,8 @@ function enableResize(root) {
 
 /* ===================== DESKTOP ICONS ===================== */
 const iconsEl = $("#icons");
+/* Desktop icons follow real OS behaviour: click = select (highlight), double-click
+   = open. On touch screens there is no double-click, so a single tap opens. */
 function addDesktopIcon(label, icon, action) {
   const b = el("button", { className: "dicon" }, `<span class="ico">${icon}</span><span>${esc(label)}</span>`);
   b.onclick = () => {
@@ -524,6 +704,9 @@ $("#desktop").addEventListener("pointerdown", e => { if (e.target === $("#deskto
 /* ===================== LAUNCHER ===================== */
 const launcher = $("#launcher"), lbtn = $("#launcher-btn"), lsearch = $("#launcher-search"), llist = $("#launcher-list");
 const clockPop = $("#clock-pop"), clockBtn = $("#clock");
+/* The start-menu list. It is rebuilt on every keystroke in the search box:
+   gather all apps + links, keep only those whose title/description contains the
+   search text (case-insensitive), and draw them as buttons. */
 function buildLauncher(q = "") {
   const items = [
     ...DESKTOP_ORDER.map(id => ({ title: APPS[id].title, icon: APPS[id].icon, desc: APPS[id].desc, run: () => openApp(id) })),
@@ -538,6 +721,10 @@ function buildLauncher(q = "") {
     llist.append(b);
   });
 }
+/* Popups (launcher, calendar) close when you click anywhere outside them or press
+   Escape. `closest(".popup, ...")` walks up from the clicked element to see if it
+   was inside one: if not, close. The buttons that OPEN a popup stopPropagation()
+   so the same click doesn't instantly close it again. */
 function closePopups() { launcher.hidden = true; clockPop.hidden = true; lbtn.setAttribute("aria-expanded", "false"); }
 lbtn.onclick = e => { e.stopPropagation(); const show = launcher.hidden; closePopups(); if (show) { launcher.hidden = false; lbtn.setAttribute("aria-expanded", "true"); lsearch.value = ""; buildLauncher(); if (!mobile()) lsearch.focus(); } };
 clockBtn.onclick = e => { e.stopPropagation(); const show = clockPop.hidden; closePopups(); if (show) { clockPop.hidden = false; renderCalendar(); } };
@@ -550,6 +737,10 @@ $("#btn-theme-cycle").onclick = cycleTheme;
 $("#tray-theme").onclick = cycleTheme;
 
 /* ===================== CLOCK (South African time) ===================== */
+/* WHY Intl.DateTimeFormat? The visitor could be anywhere in the world, but the
+   clock must always show South African time. new Date().getHours() uses the
+   VISITOR'S timezone; Intl lets us force timeZone: "Africa/Johannesburg" (set
+   in CONFIG). hourCycle "h23" gives 24-hour time (00 to 23). */
 function clockParts(d = new Date()) {
   const f = (o) => new Intl.DateTimeFormat("en-ZA", { timeZone: CONFIG.timezone, ...o }).format(d);
   return {
@@ -565,6 +756,13 @@ function tickClock() {
   clockBtn.title = c.long + " · SAST";
   if (!clockPop.hidden) { $("#cp-time").textContent = c.secs; $("#cp-date").textContent = c.long; }
 }
+/* Draws the month grid in the clock popup.
+   - We first ask for today's date IN SOUTH AFRICA (the "en-CA" locale formats it
+     as YYYY-MM-DD, which is easy to split into numbers).
+   - Date.UTC(Y, M-1, 1).getUTCDay() = weekday of the 1st (0 = Sunday) -> how
+     many empty cells to leave before day 1.
+   - Date.UTC(Y, M, 0) = "day 0 of next month" = the LAST day of this month, a
+     handy trick for finding how many days the month has. */
 function renderCalendar() {
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: CONFIG.timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()).split("-").map(Number);
   const [Y, M, D] = parts, first = new Date(Date.UTC(Y, M - 1, 1)).getUTCDay(), days = new Date(Date.UTC(Y, M, 0)).getUTCDate();
@@ -581,7 +779,17 @@ setWallpaper(store.get("wp") || "aurora");
 (function avatar() {
   const img = $("#lh-avatar"); img.onload = () => { img.hidden = false; $("#lh-fallback").hidden = true; }; img.src = CONFIG.photo;
 })();
+/* The boot order matters: apply the saved theme and wallpaper FIRST so the
+   desktop is already the right colour when the boot screen fades away. */
 /* ===================== BOOT SCREEN ===================== */
+/* The fake "Linux boot" intro (about 3 seconds).
+   - Shown only once per visit: sessionStorage remembers it (it is wiped when the
+     tab closes, unlike localStorage). Reduced-motion users skip it too.
+   - The `finished` flag makes finish() safe to call many times (timer end,
+     click and key press can all fire it) but it only runs once.
+   - tick() prints one log line, moves the progress bar, then schedules itself
+     again with setTimeout: a simple loop that doesn't freeze the page.
+   - { once: true } makes the keydown listener remove itself after first use. */
 function runBoot(onDone) {
   const boot = $("#boot"), fill = $("#boot-fill"), log = $("#boot-log");
   const seen = (() => { try { return sessionStorage.getItem("booted"); } catch { return null; } })();

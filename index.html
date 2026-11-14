@@ -11,7 +11,11 @@
 </head>
 <body>
 
-<!-- Wallpaper (one layer is shown at a time, chosen in Appearance) -->
+<!-- WALLPAPER LAYERS
+     Every wallpaper is stacked here. Only the one matching data-wp on the html tag is
+     visible (see "WALLPAPER LAYERS" in style.css). The SVG ones use CSS variables such as
+     var(--wp-a) for their colours, so they re-colour themselves when the theme changes.
+     The two <canvas> layers (aurora, rain) are painted by the live wallpaper code in app.js. -->
 <div id="wallpaper" aria-hidden="true">
   <svg class="wp" data-wp="plasma" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
     <defs><linearGradient id="g-plasma" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--wp-a)"/><stop offset="1" stop-color="var(--wp-b)"/></linearGradient></defs>
@@ -71,13 +75,18 @@
   <div class="wp-grain"></div>
 </div>
 
-<!-- Desktop -->
+<!-- DESKTOP
+     #icons  = the desktop icon grid, filled by addDesktopIcon() in app.js
+     #windows = the layer app windows are created inside by openApp() in app.js
+     This file is only the empty skeleton; app.js builds everything inside it. -->
 <main id="desktop">
   <div id="icons"></div>
   <div id="windows"></div>
 </main>
 
-<!-- Launcher -->
+<!-- LAUNCHER (start menu)
+     Hidden by default through the "hidden" attribute. app.js shows it when the logo button
+     is clicked and fills #launcher-list with the app buttons. -->
 <div id="launcher" class="popup" hidden>
   <div class="launcher-head">
     <img id="lh-avatar" alt="" hidden>
@@ -95,7 +104,7 @@
   </div>
 </div>
 
-<!-- Clock popup -->
+<!-- CLOCK POPUP: big time, long date and a month calendar, always in South African time. -->
 <div id="clock-pop" class="popup" hidden>
   <div id="cp-time">--:--:--</div>
   <div id="cp-date">—</div>
@@ -103,7 +112,9 @@
   <div class="cp-cal" id="cp-cal"></div>
 </div>
 
-<!-- Panel (taskbar) -->
+<!-- PANEL (taskbar)
+     Left: launcher button. Middle: #tasks gets one button per open window. Right: the tray
+     icons and the clock. The wifi and volume icons are decoration only. -->
 <footer id="panel">
   <button id="launcher-btn" class="panel-btn" aria-label="Open application launcher" title="Applications">
     <svg viewBox="0 0 32 32" width="26" height="26"><path d="M16 2 28 9v14l-12 7L4 23V9z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M11 21 16 10l5 11M12.8 17.5h6.4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -124,7 +135,8 @@
   </button>
 </footer>
 
-<!-- Boot screen -->
+<!-- BOOT SCREEN: the fake start-up shown once per visit. It sits above everything and is
+     removed from the page by runBoot() in app.js when it finishes (or is clicked). -->
 <div id="boot" role="status" aria-live="polite">
   <div class="boot-inner">
     <svg class="boot-logo" viewBox="0 0 32 32" width="84" height="84"><path d="M16 2 28 9v14l-12 7L4 23V9z" fill="none" stroke="#3daee9" stroke-width="1.6" stroke-linejoin="round"/><path d="M11 21 16 10l5 11M12.8 17.5h6.4" fill="none" stroke="#3daee9" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -136,6 +148,7 @@
   <button id="boot-skip" type="button">Click anywhere or press any key to skip</button>
 </div>
 
+<!-- Shown only if JavaScript is switched off, because the whole desktop is built by app.js. -->
 <noscript><p style="position:fixed;inset:0;display:grid;place-items:center;background:#0d1b2e;color:#fff;font-family:sans-serif">This desktop needs JavaScript. You can still reach me at github.com/Sneeuman</p></noscript>
 <script src="app.js"></script>
 </body>
